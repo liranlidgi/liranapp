@@ -10,9 +10,21 @@
 
 ## הרצה מקומית
 
+### אופציה א׳: Docker (מומלץ — לא דורש התקנת Python/poppler ידנית)
+
+דרישה יחידה: [Docker](https://docs.docker.com/get-docker/) מותקן ורץ.
+
+```bash
+docker compose up --build
+```
+
+גשו ל-`http://localhost:8000`.
+
+### אופציה ב׳: הרצה ישירה עם Python
+
 ```bash
 # תלות מערכת: poppler-utils (מספק את pdftotext)
-apt-get install -y poppler-utils
+apt-get install -y poppler-utils   # macOS: brew install poppler
 
 cd backend
 python3 -m venv venv && source venv/bin/activate
