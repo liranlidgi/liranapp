@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Never commit uploaded/sample insurance forms (personal data: ID numbers,
+# phone numbers, health declarations, signatures).
+*.pdf
+/samples/

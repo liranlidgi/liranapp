@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>חילוץ שדות מטופס ביטוח</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --border: #e2e5ea;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --high: #1a8f4c;
+    --high-bg: #e6f7ec;
+    --medium: #b8860b;
+    --medium-bg: #fff6e0;
+    --low: #c0392b;
+    --low-bg: #fdecea;
+    --accent: #2f5fd0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .upload-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  input[type=file] { flex: 1; min-width: 220px; }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:disabled { background: #a9b6d6; cursor: not-allowed; }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .stat { border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+  .stat .num { font-size: 24px; font-weight: 700; }
+  .stat .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .stat.high .num { color: var(--high); }
+  .stat.medium .num { color: var(--medium); }
+  .stat.low .num { color: var(--low); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+  th { background: #fafbfc; font-weight: 600; color: var(--muted); font-size: 12px; }
+  tr:hover td { background: #fafbfc; }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge.high { background: var(--high-bg); color: var(--high); }
+  .badge.medium { background: var(--medium-bg); color: var(--medium); }
+  .badge.low { background: var(--low-bg); color: var(--low); }
+  .section-tag { color: var(--muted); font-size: 12px; }
+  #status { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  #status.error { color: var(--low); }
+  .hidden { display: none; }
+  .filters { display: flex; gap: 8px; margin-bottom: 12px; }
+  .filters button {
+    background: white;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+  .filters button.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .issues { margin-top: 12px; font-size: 13px; color: var(--medium); }
+  .warnings { color: var(--low); font-size: 13px; margin-top: 8px; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 30px; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>חילוץ שדות מטופס הצעה לביטוח</h1>
+  <p class="subtitle">העלה קובץ PDF של טופס הצעה לביטוח וקבל את רשימת השדות שמולאו, יחד עם רמת ביטחון לכל שדה.</p>
+
+  <div class="card">
+    <div class="upload-row">
+      <input type="file" id="fileInput" accept="application/pdf">
+      <button id="analyzeBtn">נתח מסמך</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div id="resultsWrap" class="hidden">
+    <div class="card">
+      <div class="summary-grid" id="summaryGrid"></div>
+      <div class="issues hidden" id="issuesBox"></div>
+      <div class="warnings hidden" id="warningsBox"></div>
+    </div>
+
+    <div class="card">
+      <div class="filters">
+        <button data-filter="all" class="active">הכל</button>
+        <button data-filter="high">ביטחון גבוה</button>
+        <button data-filter="medium">בינוני</button>
+        <button data-filter="low">לבדיקה</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>שם השדה</th>
+            <th>הערך שנמצא</th>
+            <th>Confidence</th>
+            <th>עמוד</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>שלב 1: זיהוי שדות שמולאו בלבד. שדות ריקים אינם מוצגים.</footer>
+
+<script>
+const API_BASE = '';
+const fileInput = document.getElementById('fileInput');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const statusEl = document.getElementById('status');
+const resultsWrap = document.getElementById('resultsWrap');
+const summaryGrid = document.getElementById('summaryGrid');
+const resultsBody = document.getElementById('resultsBody');
+const issuesBox = document.getElementById('issuesBox');
+const warningsBox = document.getElementById('warningsBox');
+
+let lastFields = [];
+
+function confidenceBand(c) {
+  if (c >= 0.90) return 'high';
+  if (c >= 0.70) return 'medium';
+  return 'low';
+}
+
+function renderSummary(summary) {
+  summaryGrid.innerHTML = `
+    <div class="stat"><div class="num">${summary.pages}</div><div class="label">עמודים</div></div>
+    <div class="stat"><div class="num">${summary.total_fields_detected}</div><div class="label">סה"כ שדות שזוהו</div></div>
+    <div class="stat high"><div class="num">${summary.high_confidence}</div><div class="label">ביטחון גבוה</div></div>
+    <div class="stat medium"><div class="num">${summary.medium_confidence}</div><div class="label">ביטחון בינוני</div></div>
+    <div class="stat low"><div class="num">${summary.low_confidence}</div><div class="label">לבדיקה</div></div>
+  `;
+  if (summary.potential_issues && summary.potential_issues.length) {
+    issuesBox.classList.remove('hidden');
+    issuesBox.innerHTML = '<strong>שדות שדורשים בדיקה:</strong><br>' + summary.potential_issues.join('<br>');
+  } else {
+    issuesBox.classList.add('hidden');
+  }
+}
+
+function renderTable(fields) {
+  resultsBody.innerHTML = '';
+  const sorted = [...fields].sort((a, b) => b.confidence - a.confidence);
+  for (const f of sorted) {
+    const band = confidenceBand(f.confidence);
+    const tr = document.createElement('tr');
+    tr.dataset.band = band;
+    tr.innerHTML = `
+      <td>${escapeHtml(f.field_name)}<br><span class="section-tag">${escapeHtml(f.section)}</span></td>
+      <td>${escapeHtml(f.value)}</td>
+      <td><span class="badge ${band}">${Math.round(f.confidence * 100)}%</span></td>
+      <td>${f.page_number}</td>
+    `;
+    resultsBody.appendChild(tr);
+  }
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+document.querySelectorAll('.filters button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const filter = btn.dataset.filter;
+    document.querySelectorAll('#resultsBody tr').forEach(tr => {
+      tr.style.display = (filter === 'all' || tr.dataset.band === filter) ? '' : 'none';
+    });
+  });
+});
+
+analyzeBtn.addEventListener('click', async () => {
+  const file = fileInput.files[0];
+  if (!file) {
+    statusEl.textContent = 'נא לבחור קובץ PDF תחילה.';
+    statusEl.classList.add('error');
+    return;
+  }
+  statusEl.classList.remove('error');
+  statusEl.textContent = 'מנתח את המסמך... (זה עשוי לקחת מספר שניות)';
+  analyzeBtn.disabled = true;
+  resultsWrap.classList.add('hidden');
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE}/api/analyze`, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'שגיאה לא ידועה' }));
+      throw new Error(err.detail || `שגיאת שרת (${res.status})`);
+    }
+    const data = await res.json();
+    lastFields = data.fields;
+    renderSummary(data.summary);
+    renderTable(data.fields);
+    if (data.warnings && data.warnings.length) {
+      warningsBox.classList.remove('hidden');
+      warningsBox.innerHTML = data.warnings.map(escapeHtml).join('<br>');
+    } else {
+      warningsBox.classList.add('hidden');
+    }
+    resultsWrap.classList.remove('hidden');
+    statusEl.textContent = `הניתוח הושלם: ${data.summary.total_fields_detected} שדות זוהו.`;
+  } catch (e) {
+    statusEl.textContent = 'שגיאה: ' + e.message;
+    statusEl.classList.add('error');
+  } finally {
+    analyzeBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
