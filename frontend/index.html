@@ -171,8 +171,7 @@ function renderSummary(summary) {
 
 function renderTable(fields) {
   resultsBody.innerHTML = '';
-  const sorted = [...fields].sort((a, b) => b.confidence - a.confidence);
-  for (const f of sorted) {
+  for (const f of fields) {
     const band = confidenceBand(f.confidence);
     const tr = document.createElement('tr');
     tr.dataset.band = band;

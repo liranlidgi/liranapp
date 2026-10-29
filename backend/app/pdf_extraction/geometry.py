@@ -25,7 +25,7 @@ CHECKMARK = "✔"
 
 
 def line_text(line: Line) -> str:
-    return "".join(w.text for w in line.words)
+    return " ".join(w.text for w in line.words)
 
 
 def find_lines_with_text(lines: list[Line], page: int | None, needle: str) -> list[Line]:

@@ -6,6 +6,7 @@ table.
 from __future__ import annotations
 
 import logging
+import os
 import tempfile
 from pathlib import Path
 
@@ -43,14 +44,18 @@ async def analyze(file: UploadFile) -> ExtractionResult:
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=400, detail="הקובץ גדול מדי (מקסימום 25MB)")
 
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=True) as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         tmp.write(data)
-        tmp.flush()
+        tmp_path = tmp.name
+
+    try:
         try:
-            result = run_extraction(tmp.name, FIELDS, TABLES)
+            result = run_extraction(tmp_path, FIELDS, TABLES)
         except Exception:
             logger.exception("Extraction failed for uploaded file %s", file.filename)
             raise HTTPException(status_code=500, detail="חילוץ הנתונים מהמסמך נכשל")
+    finally:
+        os.remove(tmp_path)
 
     logger.info(
         "Analyzed %s: %d fields detected across %d pages",
