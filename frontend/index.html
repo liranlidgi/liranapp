@@ -100,6 +100,7 @@
     <div class="upload-row">
       <input type="file" id="fileInput" accept="application/pdf">
       <button id="analyzeBtn">נתח מסמך</button>
+      <button id="insurtixBtn" title="מוריד קובץ שנטען בטופס היצירה של אינשורטקס (כפתור טעינת נתוני הצעה)">הורד קובץ לטופס היצירה</button>
     </div>
     <div id="status"></div>
   </div>
@@ -239,6 +240,48 @@ analyzeBtn.addEventListener('click', async () => {
     statusEl.classList.add('error');
   } finally {
     analyzeBtn.disabled = false;
+  }
+});
+
+// Export for the Insurtix policy form panel: same extraction, mapped to the
+// panel's field paths ("insurtix-proposal" v1), saved as a JSON file.
+const insurtixBtn = document.getElementById('insurtixBtn');
+insurtixBtn.addEventListener('click', async () => {
+  const file = fileInput.files[0];
+  if (!file) {
+    statusEl.textContent = 'נא לבחור קובץ PDF תחילה.';
+    statusEl.classList.add('error');
+    return;
+  }
+  statusEl.classList.remove('error');
+  statusEl.textContent = 'מכין קובץ לטופס היצירה...';
+  insurtixBtn.disabled = true;
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE}/api/insurtix`, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'שגיאה לא ידועה' }));
+      throw new Error(err.detail || `שגיאת שרת (${res.status})`);
+    }
+    const data = await res.json();
+    const name = 'insurtix-proposal-' + (data.source.proposal_number || file.name.replace(/\.pdf$/i, '')) + '.txt';
+    const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    const n = Object.keys(data.values).length;
+    const review = Object.values(data.values).filter(v => v.needs_review).length;
+    statusEl.textContent = `נוצר הקובץ ${name}: ${n} שדות, ${review} לבדיקה` +
+      (data.warnings.length ? `, ${data.warnings.length} אזהרות` : '') + '.';
+  } catch (e) {
+    statusEl.textContent = 'שגיאה: ' + e.message;
+    statusEl.classList.add('error');
+  } finally {
+    insurtixBtn.disabled = false;
   }
 });
 </script>

@@ -26,7 +26,7 @@ because the sections always appear in the same fixed order.
 """
 from __future__ import annotations
 
-from .schema import FieldSpec, Pattern, TableSpec
+from .schema import FieldSpec, FindingsSpec, Pattern, TableSpec
 
 YES_NO = ("לא", "כן")
 
@@ -185,6 +185,23 @@ _HEALTH_QUESTIONS = [
 for name, page, anchor, xs in _HEALTH_QUESTIONS:
     FIELDS += _yn_pair(name, "הצהרת בריאות", page, anchor, x_split=xs)
 
+# Height / weight: first rows of the health-declaration table on page 3. The
+# label sits in the question column ("גובה (בס"מ)", "משקל (בק"ג)") and each
+# candidate's value sits on the same row under that candidate's column header.
+def _row(field_name, page, anchor_text, column_header):
+    return FieldSpec(
+        field_name=field_name, section="הצהרת בריאות", pages=(page,), pattern=Pattern.ROW,
+        anchor_text=anchor_text, column_header=column_header,
+    )
+
+
+FIELDS += [
+    _row("גובה - מועמד ראשון", 3, "גובה", "מועמד ראשון לביטוח"),
+    _row("משקל - מועמד ראשון", 3, "משקל", "מועמד ראשון לביטוח"),
+    _row("גובה - מועמד שני", 3, "גובה", "מועמד שני לביטוח"),
+    _row("משקל - מועמד שני", 3, "משקל", "מועמד שני לביטוח"),
+]
+
 # ---------------------------------------------------------------------------
 # Page 5: existing-insurance comparison/cancellation questions
 # ---------------------------------------------------------------------------
@@ -228,7 +245,14 @@ FIELDS += [
 ]
 
 FIELDS += [
-    _grid("בנק", "הרשאה לחיוב חשבון", 9, "בנק", direction="below"),
+    # Verified on a real form: the account row is "בנק | סניף | מספר חשבון |
+    # סוג חשבון", values above the labels (the row is often left empty for
+    # the bank to fill). The first "בנק" label on the page is this row; the
+    # value printed BELOW it ("00840") is the institution code, not a bank.
+    _grid("מספר סניף", "הרשאה לחיוב חשבון", 9, "סניף"),
+    _grid("מספר חשבון", "הרשאה לחיוב חשבון", 9, "מספר חשבון"),
+    _grid("בנק", "הרשאה לחיוב חשבון", 9, "בנק"),
+    _grid("קוד המוסד )המוטב(", "הרשאה לחיוב חשבון", 9, "קוד המוסד )המוטב("),
     _grid("שם המוסד )המוטב(", "הרשאה לחיוב חשבון", 9, "שם המוסד )המוטב("),
     _grid("שם פרטי (בעל החשבון)", "הרשאה לחיוב חשבון", 9, "שם פרטי"),
     _grid("שם משפחה (בעל החשבון)", "הרשאה לחיוב חשבון", 9, "שם משפחה"),
@@ -244,5 +268,106 @@ TABLES.append(
     TableSpec(
         table_name="רשימת החתמות", section="חתימות", page=16,
         header_texts=SIGNING_LOG_HEADERS, column_names=SIGNING_LOG_HEADERS, max_rows=20,
+        search_pages=tuple(range(30, 0, -1)),  # last page; count depends on appendices
     )
 )
+
+# ---------------------------------------------------------------------------
+# Health declaration, section 4: positive findings ("פירוט ממצאים חיוביים").
+# Question number + free-text details per candidate. Searched on pages 3-5
+# because the continuation page depends on how much the form wraps.
+# ---------------------------------------------------------------------------
+FINDINGS: list[FindingsSpec] = [
+    FindingsSpec(
+        table_name="ממצאים חיוביים", section="הצהרת בריאות", pages=(3, 4, 5),
+        anchor_text="פירוט ממצאים חיוביים", column_header=header, candidate_label=label,
+    )
+    for header, label in (("מועמד ראשון לביטוח", "מועמד ראשון"),
+                          ("מועמד שני לביטוח", "מועמד שני"))
+]
+
+
+# ---------------------------------------------------------------------------
+# Added after checking a real form (2 candidates, cancellation appendix and
+# an irrevocable beneficiary). Appendix pages (cancellation notice "נספח ג'",
+# irrevocable beneficiary notice) follow the 9 form pages and only exist when
+# relevant, so their fields search a page range rather than a fixed page.
+# ---------------------------------------------------------------------------
+APPENDIX_PAGES = tuple(range(6, 31))
+
+
+def _two(base_name, section, pages, pattern, anchor_text, x_split, **kw):
+    """Same question for both candidates, side by side (right = first)."""
+    return [
+        FieldSpec(field_name=f"{base_name} - {label}", section=section, pages=pages,
+                  pattern=pattern, anchor_text=anchor_text, column=col, x_split=x_split, **kw)
+        for label, col in (("מועמד ראשון", "right"), ("מועמד שני", "left"))
+    ]
+
+
+def _per_appendix(base_name, section, anchor_text, pattern=Pattern.GRID, **kw):
+    """One appendix page per candidate, in candidate order."""
+    return [
+        FieldSpec(field_name=f"{base_name} - {label}", section=section, pages=APPENDIX_PAGES,
+                  pattern=pattern, anchor_text=anchor_text, occurrence=i, **kw)
+        for i, label in enumerate(("מועמד ראשון", "מועמד שני"))
+    ]
+
+
+# beneficiaries: the "legal heirs" checkbox under each beneficiary table
+FIELDS += [
+    FieldSpec(field_name="יורשים חוקיים - מועמד ראשון", section="מוטבים", pages=(1,),
+              pattern=Pattern.CHECKBOX, anchor_text="יורשים חוקיים"),
+    FieldSpec(field_name="יורשים חוקיים - מועמד שני", section="מוטבים", pages=(2,),
+              pattern=Pattern.CHECKBOX, anchor_text="יורשים חוקיים"),
+]
+
+# health 2.1: cigarettes per day, written right after the label
+FIELDS += _two("כמות סיגריות ליום", "הצהרת בריאות", (3,), Pattern.INLINE,
+               "כמה סיגריות ליום?", 255, max_gap=40.0)
+
+# existing insurance (page 5): what to do with the existing policy, and how
+# to submit the cancellation (checkbox to the right of each option)
+for _name, _anchor in (("להותיר את הפוליסה ללא שינוי", "להותיר את הפוליסה ללא שינוי"),
+                       ("להקטין סכום ביטוח בפוליסה הקיימת", "להקטין סכום ביטוח בפוליסה הקיימת"),
+                       ("לבטל את הפוליסה הקיימת", "לבטל את הפוליסה הקיימת")):
+    FIELDS += _yn_pair(_name, "ביטוחים קיימים", 5, _anchor, x_split=190)
+for _name, _anchor, _opt in (("הגשת ביטול באמצעות סוכן", "באמצעות סוכן הביטוח", "באמצעות"),
+                             ("הגשת ביטול באמצעות שלמה", "באמצעות חברת הביטוח", "באמצעות"),
+                             ("הגשת ביטול באופן עצמי", "ביטול באופן עצמי", "ביטול")):
+    FIELDS += _two(_name, "ביטוחים קיימים", (5,), Pattern.CHOICE, _anchor, 190,
+                   options=(_opt,))
+
+# consents and declarations: signed = date stamp next to the signature slot
+_C1_SIG = "חתימת מועמד ראשון לביטוח"
+FIELDS += [
+    FieldSpec(field_name=name, section="הצהרות והסכמות", pages=(5, 6, 7, 8), pattern=Pattern.SIGNED,
+              anchor_text=anchor, column_header=sig)
+    for name, anchor, sig in (
+        ("חתום: ויתור על סודיות רפואית - מועמד ראשון", "ויתור על סודיות רפואית", _C1_SIG),
+        ("חתום: הגנת הפרטיות - מועמד ראשון", "הגנת הפרטיות - שימוש במידע", _C1_SIG),
+        ("חתום: פניה שיווקית - מועמד ראשון", "פניה שיווקית", _C1_SIG),
+        ("חתום: הצהרת המועמדים לביטוח חיים - מועמד ראשון", "הצהרת המועמדים לביטוח חיים", _C1_SIG),
+        ("חתום: הצהרת הסוכן", "הצהרת הסוכן", "חתימת הסוכן"),
+    )
+]
+FIELDS.append(
+    FieldSpec(field_name="מבקש מסמכים בדואר ישראל", section="הצהרות והסכמות", pages=(6, 7),
+              pattern=Pattern.CHECKBOX, anchor_text="בדואר ישראל")
+)
+
+# cancellation notice appendix ("נספח ג'"): company and policy numbers
+FIELDS += _per_appendix("חברת ביטוח לביטול", "נספח ג' - הודעת ביטול", "עבור חברת הביטוח:",
+                        pattern=Pattern.INLINE, max_gap=160.0)
+FIELDS += _per_appendix("מספר פוליסה לביטול", "נספח ג' - הודעת ביטול",
+                        "להלן מספרי הפוליסות לביטול:", pattern=Pattern.INLINE, max_gap=60.0)
+
+# irrevocable beneficiary appendix (the lending bank / financial institution)
+for _name, _anchor in (("שם המוטב הבלתי חוזר (בנק)", "שם המוטב הבלתי חוזר )בנק("),
+                       ("מספר בנק", "מספר בנק"),
+                       ("מספר סניף", "מספר סניף"),
+                       ("כתובת הסניף", "כתובת הסניף"),
+                       ("שם המוטב הבלתי חוזר (מוסד פיננסי)", "שם המוטב הבלתי חוזר )המוסד הפיננסי("),
+                       ("מספר חברה", "מספר חברה")):
+    FIELDS += _per_appendix(_name, "מוטב בלתי חוזר", _anchor)
+

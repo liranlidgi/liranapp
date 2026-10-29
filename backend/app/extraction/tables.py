@@ -33,8 +33,7 @@ def _row_cluster(words: list[Word], y_tolerance: float = 4.0) -> list[list[Word]
     return rows
 
 
-def extract_table(spec: TableSpec, lines: list[Line]) -> list[FieldResult]:
-    page_lines = [ln for ln in lines if ln.page == spec.page]
+def _find_headers(spec: TableSpec, page_lines: list[Line]) -> list[Line] | None:
     header_lines: list[Line] = []
     for header_text in spec.header_texts:
         target = header_text.replace(" ", "")
@@ -42,8 +41,22 @@ def extract_table(spec: TableSpec, lines: list[Line]) -> list[FieldResult]:
             (ln for ln in page_lines if ln.text.replace(" ", "") == target), None
         )
         if match is None:
-            return []  # header not found at all -- table isn't on this page as expected
+            return None  # header not found -- table isn't on this page
         header_lines.append(match)
+    return header_lines
+
+
+def extract_table(spec: TableSpec, lines: list[Line]) -> list[FieldResult]:
+    page = spec.page
+    header_lines = None
+    for candidate in (spec.search_pages or (spec.page,)):
+        page_lines = [ln for ln in lines if ln.page == candidate]
+        header_lines = _find_headers(spec, page_lines)
+        if header_lines is not None:
+            page = candidate
+            break
+    if header_lines is None:
+        return []
 
     header_row_y1 = max(ln.y1 for ln in header_lines)
     # column boundaries: midpoints between consecutive header centers (RTL order
@@ -104,7 +117,7 @@ def extract_table(spec: TableSpec, lines: list[Line]) -> list[FieldResult]:
                     field_name=f"{spec.table_name} - שורה {row_idx} - {col_name}",
                     value=text,
                     confidence=confidence,
-                    page_number=spec.page,
+                    page_number=page,
                     section=spec.section,
                     source=Source(
                         type="table_cell",

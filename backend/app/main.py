@@ -16,7 +16,8 @@ from fastapi.staticfiles import StaticFiles
 
 from .extraction.engine import run_extraction
 from .extraction.models import ExtractionResult
-from .template.shlomo_life_insurance import FIELDS, TABLES
+from .template.shlomo_life_insurance import FIELDS, FINDINGS, TABLES
+from .insurtix.mapping import to_insurtix
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ async def analyze(file: UploadFile) -> ExtractionResult:
 
     try:
         try:
-            result = run_extraction(tmp_path, FIELDS, TABLES)
+            result = run_extraction(tmp_path, FIELDS, TABLES, FINDINGS)
         except Exception:
             logger.exception("Extraction failed for uploaded file %s", file.filename)
             raise HTTPException(status_code=500, detail="חילוץ הנתונים מהמסמך נכשל")
@@ -62,6 +63,14 @@ async def analyze(file: UploadFile) -> ExtractionResult:
         file.filename, result.summary.total_fields_detected, result.document_pages,
     )
     return result
+
+
+@app.post("/api/insurtix")
+async def insurtix_export(file: UploadFile) -> dict:
+    """Same extraction as /api/analyze, returned in the format the Insurtix
+    policy form panel loads ("insurtix-proposal" v1)."""
+    result = await analyze(file)
+    return to_insurtix(result, file.filename or "")
 
 
 @app.get("/api/health")

@@ -18,6 +18,10 @@ class Pattern(str, Enum):
     GRID = "grid"            # value printed directly above the label
     CHOICE = "choice"        # checkmark selects one of several option words
     TABLE = "table"          # repeating rows under a header
+    ROW = "row"              # value in the same table row, under a column header
+    INLINE = "inline"        # value on the same line, right after the label (to its left)
+    SIGNED = "signed"        # "כן" when a section's signature slot carries a date stamp
+    CHECKBOX = "checkbox"    # "כן"/"לא": is there a checkmark next to the anchor text
 
 
 @dataclass(frozen=True)
@@ -35,6 +39,9 @@ class FieldSpec:
     layout: str = "inline"        # CHOICE only: "inline" (checkboxes near the question text,
                                     # split left/right by column) or "above_label" (checkboxes
                                     # sit in the value row above a short field label, like GRID)
+    column_header: str | None = None  # ROW: header of the value column;
+                                      # SIGNED: label of the signature slot
+    max_gap: float = 60.0             # INLINE only: max distance from label to value
     notes: str = ""
 
     def __post_init__(self):
@@ -50,6 +57,28 @@ class TableSpec:
     header_texts: tuple[str, ...]   # column headers, in RTL reading (right-to-left) order
     column_names: tuple[str, ...]   # human field-name per column, same order as header_texts
     max_rows: int = 20
+    # When set, the table is looked up on these pages (first page holding all
+    # headers wins) instead of the fixed `page`: the signing log is the last
+    # page, and the page count depends on which appendices are attached.
+    search_pages: tuple[int, ...] = ()
+
+
+@dataclass(frozen=True)
+class FindingsSpec:
+    """The "positive findings" table of the health declaration: under each
+    candidate column there are two sub-columns, a question number ("מס' שאלה")
+    and free-text details ("פרטים") that can wrap over several lines. One
+    entry starts at each question number."""
+    table_name: str               # field-name prefix, e.g. "ממצאים חיוביים"
+    section: str
+    pages: tuple[int, ...]        # pages to search for the anchor
+    anchor_text: str              # question text of the row, e.g. "פירוט ממצאים חיוביים"
+    column_header: str            # candidate column header, e.g. "מועמד ראשון לביטוח"
+    candidate_label: str          # used in field names, e.g. "מועמד ראשון"
+    number_header: str = "שאלה"   # second word of the "מס' שאלה" sub-header
+    details_header: str = "פרטים"
+    end_text: str = "חתימות"      # band that closes the table (page end if missing)
+    max_rows: int = 10
 
 
 @dataclass(frozen=True)

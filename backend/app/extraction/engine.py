@@ -6,7 +6,8 @@ from __future__ import annotations
 import logging
 
 from ..pdf_extraction.bbox_extractor import extract_words
-from ..template.schema import FieldSpec, Pattern, TableSpec
+from ..template.schema import FieldSpec, FindingsSpec, Pattern, TableSpec
+from .findings import extract_findings
 from .models import ExtractionResult, FieldResult, Summary
 from .patterns import extract_field
 from .tables import extract_table
@@ -27,6 +28,7 @@ def run_extraction(
     pdf_path: str,
     field_specs: list[FieldSpec],
     table_specs: list[TableSpec],
+    findings_specs: list[FindingsSpec] = (),
 ) -> ExtractionResult:
     pages, words, lines = extract_words(pdf_path)
     warnings: list[str] = []
@@ -54,7 +56,7 @@ def run_extraction(
     results: list[FieldResult] = []
     for spec in field_specs:
         try:
-            if spec.pattern in (Pattern.GRID, Pattern.CHOICE):
+            if spec.pattern != Pattern.TABLE:
                 res = extract_field(spec, lines, page_widths)
                 if res is not None:
                     results.append(res)
@@ -68,6 +70,13 @@ def run_extraction(
         except Exception:
             logger.exception("Failed extracting table %r", tspec.table_name)
             warnings.append(f"שגיאה בחילוץ הטבלה: {tspec.table_name}")
+
+    for fspec in findings_specs:
+        try:
+            results.extend(extract_findings(fspec, lines))
+        except Exception:
+            logger.exception("Failed extracting findings %r", fspec.table_name)
+            warnings.append(f"שגיאה בחילוץ הטבלה: {fspec.table_name} - {fspec.candidate_label}")
 
     summary = _build_summary(results, len(pages))
     return ExtractionResult(
