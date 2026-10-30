@@ -138,7 +138,8 @@ def detect_selected_option(
     best: SelectedOption | None = None
     for opt_text in option_texts:
         for w in line.words:
-            if w.text != opt_text:
+            # "כן, פרט:" / "לא*": compare without trailing punctuation
+            if w.text != opt_text and w.text.strip(",.:;*") != opt_text:
                 continue
             for ck in checkmarks:
                 # checkmark sits to the reading-start (right/high-x) side of

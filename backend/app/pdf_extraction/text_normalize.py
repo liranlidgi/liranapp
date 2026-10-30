@@ -42,5 +42,11 @@ def fix_word(raw: str) -> str:
     a Hebrew token (bbox mode emits Hebrew glyphs in visual/reversed order)."""
     cleaned = strip_niqqud(raw)
     if is_mostly_hebrew(cleaned):
-        return cleaned[::-1]
+        word = cleaned[::-1]
+        # a geresh/apostrophe is kept in logical position by pdftotext, so the
+        # reversal moves it to the front ("'פלוניץ"): Hebrew words never
+        # start with one, so put it back at the end.
+        if len(word) > 1 and word[0] in "'׳" and _is_hebrew_char(word[1]):
+            word = word[1:] + word[0]
+        return word
     return cleaned

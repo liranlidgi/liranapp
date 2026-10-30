@@ -6,8 +6,10 @@ from __future__ import annotations
 import logging
 
 from ..pdf_extraction.bbox_extractor import extract_words
-from ..template.schema import FieldSpec, FindingsSpec, Pattern, TableSpec
+from ..pdf_extraction.vector_marks import find_images, find_vector_marks
+from ..template.schema import FieldSpec, FindingsSpec, Pattern, RowsTableSpec, TableSpec
 from .findings import extract_findings
+from .row_tables import extract_rows_table
 from .models import ExtractionResult, FieldResult, Summary
 from .patterns import extract_field
 from .tables import extract_table
@@ -28,14 +30,14 @@ def run_extraction(
     pdf_path: str,
     field_specs: list[FieldSpec],
     table_specs: list[TableSpec],
-    findings_specs: list[FindingsSpec] = (),
+    findings_specs: list[FindingsSpec | RowsTableSpec] = (),
 ) -> ExtractionResult:
     pages, words, lines = extract_words(pdf_path)
     warnings: list[str] = []
 
     if _looks_like_scanned_pdf(pages, words):
         warnings.append(
-            "המסמך נראה כמו PDF סרוק או ריק מטקסט — נדרש OCR ולא בוצע חילוץ."
+            "לא ניתן לקרוא את פרטי המסמך: אין בו טקסט. כנראה הוא נסרק או הודפס ל-PDF (למשל ב-Microsoft Print to PDF). יש להשתמש בקובץ המקורי ממערכת ההחתמות."
         )
         return ExtractionResult(
             document_pages=len(pages),
@@ -52,12 +54,24 @@ def run_extraction(
         )
 
     page_widths = {p.number: p.width for p in pages}
+    # selection marks drawn as graphics (LiveCycle version of the form)
+    try:
+        marks = find_vector_marks(pdf_path, max((ln.line_id for ln in lines), default=0) + 1)
+    except Exception:
+        logger.exception("Failed reading vector selection marks")
+        marks = []
+    lines = lines + marks
+    try:
+        extras = {"images": find_images(pdf_path)}
+    except Exception:
+        logger.exception("Failed reading image positions")
+        extras = {"images": []}
 
     results: list[FieldResult] = []
     for spec in field_specs:
         try:
             if spec.pattern != Pattern.TABLE:
-                res = extract_field(spec, lines, page_widths)
+                res = extract_field(spec, lines, page_widths, extras)
                 if res is not None:
                     results.append(res)
         except Exception:
@@ -73,10 +87,13 @@ def run_extraction(
 
     for fspec in findings_specs:
         try:
-            results.extend(extract_findings(fspec, lines))
+            if isinstance(fspec, RowsTableSpec):
+                results.extend(extract_rows_table(fspec, lines))
+            else:
+                results.extend(extract_findings(fspec, lines))
         except Exception:
-            logger.exception("Failed extracting findings %r", fspec.table_name)
-            warnings.append(f"שגיאה בחילוץ הטבלה: {fspec.table_name} - {fspec.candidate_label}")
+            logger.exception("Failed extracting table %r", fspec.table_name)
+            warnings.append(f"שגיאה בחילוץ הטבלה: {fspec.table_name}")
 
     summary = _build_summary(results, len(pages))
     return ExtractionResult(

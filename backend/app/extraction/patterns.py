@@ -86,14 +86,20 @@ def extract_grid_field(
         return None
     anchor = anchors[spec.occurrence]
 
+    aligned = False
     if spec.direction == "below":
-        value_line = nearest_line_below(lines, anchor)
+        value_line = nearest_line_below(lines, anchor, max_gap=spec.grid_gap)
     else:
-        value_line = nearest_line_above(lines, anchor)
+        value_line = nearest_line_above(lines, anchor, max_gap=spec.grid_gap)
+        if value_line is None:
+            value_line = _right_aligned_value_above(lines, anchor, spec.grid_gap)
+            aligned = value_line is not None
     if value_line is None or not value_line.words:
         return None
 
     x_overlap = x_overlap_fraction(value_line.x0, value_line.x1, anchor.x0, anchor.x1)
+    if aligned:
+        x_overlap = max(x_overlap, 0.75)  # right-aligned in its cell, not centered on the label
     gap = (
         value_line.y0 - anchor.y1 if spec.direction == "below" else anchor.y0 - value_line.y1
     )
@@ -123,6 +129,23 @@ def extract_grid_field(
         ),
     )
     return result if confidence >= MIN_CONFIDENCE_TO_EMIT else None
+
+
+def _right_aligned_value_above(lines: list[Line], anchor: Line, max_gap: float) -> Line | None:
+    """The LiveCycle version of the form right-aligns values in their cell
+    instead of centering them over the label, so a short value only grazes
+    the label's x-range. Accept a line above whose left end falls inside the
+    label (an RTL value that starts at the cell's right edge and ends over the
+    label); a neighbouring cell's value never starts inside this label."""
+    cands = [
+        ln for ln in lines
+        if ln.page == anchor.page and ln.y1 <= anchor.y0 + 1.0
+        and anchor.y0 - ln.y1 <= max_gap
+        and anchor.x0 - 3.0 <= ln.x0 <= anchor.x1 and ln.x1 > anchor.x1
+        and ln.x1 - ln.x0 <= 200
+        and not any(w.text == CHECKMARK for w in ln.words)
+    ]
+    return min(cands, key=lambda ln: anchor.y0 - ln.y1) if cands else None
 
 
 def _selection_to_result(spec: FieldSpec, anchor: Line, selection, page: int) -> FieldResult:
@@ -406,7 +429,7 @@ def extract_inline_field(
         return None
     value = " ".join(w.text for w in picked).strip()
     gap = anchor.x0 - picked[0].x1
-    confidence = round(max(0.6, 0.99 - gap / 400.0), 3)
+    confidence = round(max(0.6, 0.99 - gap / 1000.0), 3)
     return _result(spec, value, confidence, anchor.page, "inline", picked, anchor)
 
 
@@ -414,11 +437,13 @@ def extract_signed_field(
     spec: FieldSpec,
     lines: list[Line],
     page_widths: dict[int, float],
+    extras: dict | None = None,
 ) -> FieldResult | None:
     """Was this section signed? The anchor is the section title; the first
     signature slot below it whose label is `column_header` counts as signed
     when a date stamp sits on/just above the label (the signing service
-    stamps the date next to every signature it places)."""
+    stamps the date next to every signature it places), or a signature
+    picture sits right above the label (forms signed without a stamp)."""
     anchors = _find_anchor_lines_contains(lines, spec.pages, spec.anchor_text)
     if spec.occurrence >= len(anchors):
         return None
@@ -442,6 +467,15 @@ def extract_signed_field(
     if dates:
         d = min(dates, key=lambda w: abs(w.yc - slot.yc))
         return _result(spec, "כן", 0.9, anchor.page, "signature", [d], anchor)
+    pics = [
+        im for im in (extras or {}).get("images", [])
+        if im[0] == anchor.page
+        and im[1] < hx1 + 30 and im[3] > hx0 - 30          # overlaps the slot's x-range
+        and im[4] > slot.y0 - 40 and im[2] < slot.y1        # ends just above the label
+        and (im[3] - im[1]) >= 8 and (im[4] - im[2]) >= 5
+    ]
+    if pics:
+        return _result(spec, "כן", 0.85, anchor.page, "signature_image", [], anchor)
     return _result(spec, "לא", 0.8, anchor.page, "signature", [], anchor)
 
 
@@ -471,6 +505,7 @@ def extract_field(
     spec: FieldSpec,
     lines: list[Line],
     page_widths: dict[int, float],
+    extras: dict | None = None,
 ) -> FieldResult | None:
     if spec.pattern == Pattern.GRID:
         return extract_grid_field(spec, lines, page_widths)
@@ -481,7 +516,7 @@ def extract_field(
     if spec.pattern == Pattern.INLINE:
         return extract_inline_field(spec, lines, page_widths)
     if spec.pattern == Pattern.SIGNED:
-        return extract_signed_field(spec, lines, page_widths)
+        return extract_signed_field(spec, lines, page_widths, extras)
     if spec.pattern == Pattern.CHECKBOX:
         return extract_checkbox_field(spec, lines, page_widths)
     raise ValueError(f"extract_field cannot handle pattern {spec.pattern} directly")

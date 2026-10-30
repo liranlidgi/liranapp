@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .extraction.engine import run_extraction
 from .extraction.models import ExtractionResult
-from .template.shlomo_life_insurance import FIELDS, FINDINGS, TABLES
+from .template.shlomo_life_insurance import BENEFICIARIES, FIELDS, FINDINGS, TABLES
 from .insurtix.mapping import to_insurtix
 
 logging.basicConfig(level=logging.INFO)
@@ -51,7 +51,7 @@ async def analyze(file: UploadFile) -> ExtractionResult:
 
     try:
         try:
-            result = run_extraction(tmp_path, FIELDS, TABLES, FINDINGS)
+            result = run_extraction(tmp_path, FIELDS, TABLES, FINDINGS + BENEFICIARIES)
         except Exception:
             logger.exception("Extraction failed for uploaded file %s", file.filename)
             raise HTTPException(status_code=500, detail="חילוץ הנתונים מהמסמך נכשל")

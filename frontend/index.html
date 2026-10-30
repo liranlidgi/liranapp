@@ -265,6 +265,14 @@ insurtixBtn.addEventListener('click', async () => {
       throw new Error(err.detail || `שגיאת שרת (${res.status})`);
     }
     const data = await res.json();
+    if (data.unreadable || !Object.keys(data.values).length) {
+      // nothing could be read (scanned / "printed to PDF"): say so, no file
+      const msg = (data.warnings && data.warnings[0]) || 'לא ניתן לקרוא את פרטי המסמך.';
+      statusEl.textContent = msg;
+      statusEl.classList.add('error');
+      window.alert(msg);
+      return;
+    }
     const name = 'insurtix-proposal-' + (data.source.proposal_number || file.name.replace(/\.pdf$/i, '')) + '.txt';
     const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'text/plain;charset=utf-8' });
     const a = document.createElement('a');

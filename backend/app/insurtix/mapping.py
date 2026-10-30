@@ -96,8 +96,17 @@ SIGNED_NOTE = "לפי חתימה על הסעיף בטופס"
 FINDINGS_ROW_RE = re.compile(r"^שורה (\d+) - (.+)$")
 
 
+def _fix_parens(s: str) -> str:
+    """The text layer mirrors brackets in Hebrew ("תלמידי ישיבה )מעל דרג
+    תיכון(") -- swap them back when a closing one comes first."""
+    o, c = s.find("("), s.find(")")
+    if c != -1 and (o == -1 or c < o):
+        return s.translate(str.maketrans("()", ")("))
+    return s
+
+
 def _norm(s: str) -> str:
-    return re.sub(r"\s+", " ", str(s or "")).strip()
+    return _fix_parens(re.sub(r"\s+", " ", str(s or "")).strip())
 
 
 DATE_RE = re.compile(r"(?<!\d)(\d{1,2})[./-](\d{1,2})[./-](\d{4}|\d{2})(?!\d)")
@@ -158,8 +167,15 @@ def _gender(s: str) -> str | None:
     return None
 
 
+PANEL_RELATIONS = ["בן / בת זוג", "ילד/ה", "אח/אחות", "נכד/ה", "אחר"]
+
+
 def _relation(s: str) -> tuple[str, bool]:
     v = _norm(s)
+    flat = v.replace(" ", "")
+    for target in PANEL_RELATIONS:                 # already the panel's own wording
+        if flat == target.replace(" ", ""):
+            return target, False
     for words, target in RELATIONS:
         if any(v == w or v.startswith(w + " ") for w in words):
             return target, False
@@ -258,12 +274,25 @@ def _fill_offer(b: _Builder) -> None:
     if f:
         b.put("p.dates.signatureDate", _date(f.value), f, review=True,
               note="נלקח מהשורה הראשונה ברשימת ההחתמות")
+    else:
+        # forms without a signing log: the date written in the first
+        # declaration's "תאריך" box
+        f = b.any_named("תאריך בהצהרות")
+        if f and _date(f.value):
+            b.put("p.dates.signatureDate", _date(f.value), f, review=True,
+                  note="אין רשימת החתמות; נלקח מתאריך ההצהרות")
     f = b.any_named("מספר סוכן")
     if f:
         b.put("p.agent", _digits(f.value) or None, f)
     f = b.any_named("קוד הנחה")
     if f:
-        b.put("p.discount", _digits(f.value) or None, f)
+        if "%" in f.value:
+            b.warnings.append(
+                f"בשדה 'קוד הנחה' רשום אחוז ({_norm(f.value)}) ולא קוד הנחה. "
+                "יש לבחור את ההנחה ידנית.")
+            b.used.add(id(f))
+        else:
+            b.put("p.discount", _digits(f.value) or None, f)
     f = b.any_named(f"סכום הביטוח המבוקש{C1}")
     if f:
         b.put("p.cover.insuranceSum", _number(f.value), f)
@@ -468,6 +497,12 @@ def _fill_payment(b: _Builder) -> None:
     f = b.any_named("יום גביה מבוקש")
     if f:
         b.put("p.payment.collectionDay", _digits(f.value) or None, f)
+    else:
+        debit = next((x for x in b.by_name.get("אמצעי תשלום", []) if "הוראת" in _norm(x.value)), None)
+        if debit is not None:
+            # the form: "לגבי הוראת קבע במידה ולא נבחר מועד גביה - ברירת המחדל 2 לחודש"
+            b.put("p.payment.collectionDay", "2", debit, review=True,
+                  note="לא סומן יום גבייה; לפי הטופס ברירת המחדל להוראת קבע היא 2 לחודש")
     PAY = "הרשאה לחיוב חשבון"
     if not any(b.get(PAY, n) for n in ("בנק", "מספר סניף", "מספר חשבון")) and any(
             "הוראת" in _norm(x.value) for x in b.by_name.get("אמצעי תשלום", [])):
@@ -529,13 +564,17 @@ def _fill_beneficiaries(b: _Builder) -> None:
             "from": BENEF_TABLE,
         }
     else:
+        # no named beneficiaries: legal heirs, ticked or not ("* לא מונו מוטבים
+        # למקרה מוות - יהיו המוטבים יורשיו החוקיים של המבוטח")
         heirs = b.any_named(f"יורשים חוקיים{C1}")
-        if heirs and _yes_no(heirs.value) is True:
+        if heirs:
+            ticked = _yes_no(heirs.value) is True
             b.values["p.beneficiaries"] = {
                 "value": [], "confidence": round(heirs.confidence, 3),
                 "needs_review": heirs.confidence < REVIEW_BELOW,
                 "from": f"{heirs.section} / {heirs.field_name}",
-                "note": "יורשים חוקיים",
+                "note": "יורשים חוקיים" if ticked else
+                        "לא רשומים מוטבים, ולכן לפי הטופס יורשים חוקיים",
             }
             b.used.add(id(heirs))
 
@@ -555,8 +594,12 @@ def to_insurtix(result: ExtractionResult, source_file: str = "") -> dict[str, An
         b.warnings.append("בטופס יש מועמד שני לביטוח. הפאנל תומך במבוטח אחד, "
                           "ולכן הפרטים שלו לא נטענו.")
     proposal = b.any_named("מספר הצעה")
+    unreadable = not result.fields
+    if unreadable and not b.warnings:
+        b.warnings.append("לא ניתן לקרוא את פרטי המסמך.")
     return {
         "format": FORMAT,
+        "unreadable": unreadable,
         "version": VERSION,
         "source": {
             "file": source_file,

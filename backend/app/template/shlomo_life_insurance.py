@@ -26,7 +26,7 @@ because the sections always appear in the same fixed order.
 """
 from __future__ import annotations
 
-from .schema import FieldSpec, FindingsSpec, Pattern, TableSpec
+from .schema import FieldSpec, FindingsSpec, Pattern, RowsTableSpec, TableSpec
 
 YES_NO = ("לא", "כן")
 
@@ -115,14 +115,17 @@ FIELDS += [
 ]
 
 BENEFICIARY_COLUMNS = ("שם פרטי", "שם משפחה", "מספר זהות", "תאריך לידה", "מגדר", "קרבה", "% חלוקה")
-TABLES: list[TableSpec] = [
-    TableSpec(
+TABLES: list[TableSpec] = []
+# Beneficiary tables: every row repeats its labels under the values (checked
+# on real forms with named beneficiaries), so they are read row by row.
+BENEFICIARIES: list[RowsTableSpec] = [
+    RowsTableSpec(
         table_name="מוטבים למועמד ראשון לביטוח", section="מוטבים", page=1,
-        header_texts=BENEFICIARY_COLUMNS, column_names=BENEFICIARY_COLUMNS, max_rows=7,
+        title_text="פרטי מוטבים למועמד ראשון לביטוח", labels=BENEFICIARY_COLUMNS,
     ),
-    TableSpec(
+    RowsTableSpec(
         table_name="מוטבים למועמד שני לביטוח", section="מוטבים", page=2,
-        header_texts=BENEFICIARY_COLUMNS, column_names=BENEFICIARY_COLUMNS, max_rows=7,
+        title_text="פרטי מוטבים למועמד שני לביטוח", labels=BENEFICIARY_COLUMNS,
     ),
 ]
 
@@ -370,4 +373,11 @@ for _name, _anchor in (("שם המוטב הבלתי חוזר (בנק)", "שם ה
                        ("שם המוטב הבלתי חוזר (מוסד פיננסי)", "שם המוטב הבלתי חוזר )המוסד הפיננסי("),
                        ("מספר חברה", "מספר חברה")):
     FIELDS += _per_appendix(_name, "מוטב בלתי חוזר", _anchor)
+
+# date written in the first declaration's "תאריך" box (page 6) -- the
+# signature date for forms that have no signing log page
+FIELDS.append(
+    FieldSpec(field_name="תאריך בהצהרות", section="הצהרות והסכמות", pages=(6,),
+              pattern=Pattern.GRID, anchor_text="תאריך", grid_gap=30.0)
+)
 

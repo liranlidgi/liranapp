@@ -42,6 +42,7 @@ class FieldSpec:
     column_header: str | None = None  # ROW: header of the value column;
                                       # SIGNED: label of the signature slot
     max_gap: float = 60.0             # INLINE only: max distance from label to value
+    grid_gap: float = 13.0            # GRID only: max vertical gap between value and label
     notes: str = ""
 
     def __post_init__(self):
@@ -79,6 +80,22 @@ class FindingsSpec:
     details_header: str = "פרטים"
     end_text: str = "חתימות"      # band that closes the table (page end if missing)
     max_rows: int = 10
+
+
+@dataclass(frozen=True)
+class RowsTableSpec:
+    """A table whose every row repeats its own labels under the values (the
+    beneficiary tables): ".1" | values... over "שם פרטי | שם משפחה | ...",
+    then ".2" and so on. Columns come from each row's own label words."""
+    table_name: str               # field-name prefix, same as the old TableSpec
+    section: str
+    page: int
+    title_text: str               # table title line, e.g. "פרטי מוטבים למועמד ראשון לביטוח"
+    labels: tuple[str, ...]       # label texts of one row, RTL order
+    first_label: str = "שם פרטי"  # label that marks the start of each row
+    end_text: str = "יורשים חוקיים"
+    choice_column: str = "מגדר"   # checkbox column (options below)
+    choice_options: tuple[str, ...] = ("ז", "נ")
 
 
 @dataclass(frozen=True)
