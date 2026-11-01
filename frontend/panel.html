@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>פאנל הצעות – עותק חיצוני</title>
+<style>
+  body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; background: #f5f6f8; color: #1f2430; }
+  .side { padding: 24px; max-width: 380px; margin-left: auto; margin-right: 0; direction: rtl; }
+  body { display: flex; justify-content: flex-start; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  p { font-size: 14px; color: #4b5563; line-height: 1.6; }
+  button { background: #2f5fd0; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+  a { color: #2f5fd0; }
+  .note { font-size: 12px; color: #6b7280; }
+</style>
+</head>
+<body>
+  <div class="side">
+    <h1>פאנל הצעות – עותק חיצוני</h1>
+    <p>אותו פאנל כמו בארגון, עם כפתור נוסף בלשונית "הצעה": <b>ייצוא לטופס הצעה (PDF)</b>. ממלאים או טוענים הצעה, לוחצים ייצוא, ומקבלים טופס הצעה מלא עם הערכים האלה.</p>
+    <p><button id="open">פתיחת הפאנל</button></p>
+    <p class="note">כאן הפאנל לא מחובר ל-Insurtix, ולכן הקלדה, משימות ומייל לא יעבדו. הנתונים שמורים בדפדפן הזה בלבד, בנפרד מהפאנל שבארגון.</p>
+    <p class="note"><a href="formgen.html">מחולל טפסי בדיקה</a> · <a href="index.html">חילוץ שדות</a></p>
+  </div>
+  <script src="panel/policy-panel.js"></script>
+  <script>
+    document.getElementById('open').addEventListener('click', function () { window.__insurtixPanelOpen(); });
+  </script>
+</body>
+</html>

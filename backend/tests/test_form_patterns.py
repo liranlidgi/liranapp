@@ -166,3 +166,32 @@ def test_no_cigarettes_when_not_smoking():
     v, _ = _map([_fr("2.1 עישון בשנתיים האחרונות" + C1, "לא"),
                  _fr("כמות סיגריות ליום" + C1, "0")])
     assert "p.answers.SmokeHelthComp.NumberSig" not in v
+
+
+
+def _owner_row(value_words):
+    return [
+        line([("שם", 553.0, 566.6), ("פרטי", 534.3, 550.0)], 312.0, 9),
+        line([("שם", 465.0, 478.3), ("משפחה", 435.6, 462.0)], 312.0, 9),
+        line([("מספר", 370.0, 389.5), ("זהות", 320.7, 367.0)], 312.0, 9),
+    ] + ([line(value_words, 300.1, 9, 308.1)] if value_words else [])
+
+
+def test_short_account_owner_name_in_wide_cell():
+    """The full name is right-aligned in one wide cell; a short one ends
+    before the surname label instead of reaching over it."""
+    ls = _owner_row([("יעל", 512.0, 525.1), ("ברקוביץ", 486.3, 510.0)])
+    assert get("שם משפחה (בעל החשבון)", ls) == "יעל ברקוביץ"
+
+
+def test_wide_cell_ignores_the_next_cells_value():
+    """A first name centered over 'שם פרטי' is not the surname cell's value."""
+    assert get("שם משפחה (בעל החשבון)", _owner_row([("יעל", 540.0, 560.0)])) is None
+
+
+def test_narrow_cells_keep_the_strict_rule():
+    """Other grid fields do not take stray text between two labels."""
+    ls = [line([("שם", 465.0, 478.3), ("פרטי", 445.0, 462.0)], 312.0, 9),
+          line([("תאריך", 534.0, 566.0)], 312.0, 9),
+          line([("ז", 490.0, 493.0)], 300.1, 9, 308.1)]
+    assert get("שם פרטי (בעל החשבון)", ls) is None

@@ -1,9 +1,11 @@
 FROM python:3.11-slim
 
 # poppler-utils provides pdftotext, which the extraction pipeline shells
-# out to (see app/pdf_extraction/bbox_extractor.py).
+# out to (see app/pdf_extraction/bbox_extractor.py). fonts-freefont-ttf
+# gives the test-form generator a font with Hebrew letters.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     poppler-utils \
+    fonts-freefont-ttf \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

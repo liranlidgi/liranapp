@@ -26,6 +26,8 @@ because the sections always appear in the same fixed order.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from .schema import FieldSpec, FindingsSpec, Pattern, RowsTableSpec, TableSpec
 
 YES_NO = ("לא", "כן")
@@ -258,7 +260,7 @@ FIELDS += [
     _grid("קוד המוסד )המוטב(", "הרשאה לחיוב חשבון", 9, "קוד המוסד )המוטב("),
     _grid("שם המוסד )המוטב(", "הרשאה לחיוב חשבון", 9, "שם המוסד )המוטב("),
     _grid("שם פרטי (בעל החשבון)", "הרשאה לחיוב חשבון", 9, "שם פרטי"),
-    _grid("שם משפחה (בעל החשבון)", "הרשאה לחיוב חשבון", 9, "שם משפחה"),
+    replace(_grid("שם משפחה (בעל החשבון)", "הרשאה לחיוב חשבון", 9, "שם משפחה"), wide_cell=True),
     _grid("מספר זהות / חברה (בעל החשבון)", "הרשאה לחיוב חשבון", 9, "מספר זהות / חברה"),
 ]
 

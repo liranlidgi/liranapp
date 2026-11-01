@@ -92,7 +92,7 @@ def extract_grid_field(
     else:
         value_line = nearest_line_above(lines, anchor, max_gap=spec.grid_gap)
         if value_line is None:
-            value_line = _right_aligned_value_above(lines, anchor, spec.grid_gap)
+            value_line = _right_aligned_value_above(lines, anchor, spec.grid_gap, spec.wide_cell)
             aligned = value_line is not None
     if value_line is None or not value_line.words:
         return None
@@ -131,17 +131,35 @@ def extract_grid_field(
     return result if confidence >= MIN_CONFIDENCE_TO_EMIT else None
 
 
-def _right_aligned_value_above(lines: list[Line], anchor: Line, max_gap: float) -> Line | None:
+def _right_aligned_value_above(lines: list[Line], anchor: Line, max_gap: float,
+                               wide_cell: bool = False) -> Line | None:
     """The LiveCycle version of the form right-aligns values in their cell
     instead of centering them over the label, so a short value only grazes
     the label's x-range. Accept a line above whose left end falls inside the
     label (an RTL value that starts at the cell's right edge and ends over the
-    label); a neighbouring cell's value never starts inside this label."""
+    label); a neighbouring cell's value never starts inside this label.
+
+    For a `wide_cell` field (the account owner's full name, written in one
+    wide cell), a value short enough to sit wholly between this label and the
+    next label to its right is also taken, as long as it ends before that
+    next label starts, so the next cell's own value (centered over its label)
+    can never be picked up."""
+    right_labels = [
+        ln.x0 for ln in lines
+        if ln.page == anchor.page and abs(ln.y0 - anchor.y0) <= 2.0 and ln.x0 >= anchor.x1
+    ]
+    cell_end = min(right_labels) if (right_labels and wide_cell) else None
+
+    def in_cell(ln: Line) -> bool:
+        if anchor.x0 - 3.0 <= ln.x0 <= anchor.x1:
+            return True
+        return cell_end is not None and anchor.x1 < ln.x0 and ln.x1 <= cell_end + 1.0
+
     cands = [
         ln for ln in lines
         if ln.page == anchor.page and ln.y1 <= anchor.y0 + 1.0
         and anchor.y0 - ln.y1 <= max_gap
-        and anchor.x0 - 3.0 <= ln.x0 <= anchor.x1 and ln.x1 > anchor.x1
+        and in_cell(ln) and ln.x1 > anchor.x1
         and ln.x1 - ln.x0 <= 200
         and not any(w.text == CHECKMARK for w in ln.words)
     ]

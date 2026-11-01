@@ -1,0 +1,108 @@
+{
+ "productId": 100,
+ "owner": {
+  "idNumber": "",
+  "firstName": "נועם",
+  "lastName": "טסט",
+  "phone": "0520000000",
+  "email": "",
+  "birthDate": "13/06/1992",
+  "gender": "male",
+  "city": "חיפה",
+  "street": "מוריה",
+  "houseNumber": "5",
+  "apartment": "",
+  "mailBox": "",
+  "marketingApproval": false,
+  "digitalMailing": false
+ },
+ "dates": {
+  "requestedStartDate": "31/10/2026",
+  "receivedDate": "31/10/2026",
+  "signatureDate": "31/10/2026"
+ },
+ "agent": "839 - סוכן לדוגמה",
+ "lien": {
+  "type": "bank",
+  "bank": "בנק הבינלאומי הראשון לישראל בע\"מ - 31",
+  "branch": "באר שבע - 17"
+ },
+ "beneficiaries": [],
+ "cover": {
+  "insuranceSum": 1000000,
+  "untilAge": 84
+ },
+ "discount": "178 - הנחה לדוגמה",
+ "payment": {
+  "bank": "בנק ירושלים בע\"מ - 54",
+  "branch": "פריפייד מנפיק - 22",
+  "accountNumber": "654654",
+  "collectionDay": "13"
+ },
+ "answers": {
+  "PolicyOwnerAgreements": {
+   "PrivacyProtection": true
+  },
+  "InsuredDetailes": {
+   "HMO": "כללית",
+   "IsSmoking": true,
+   "Occupation": "אגרונום",
+   "Hobbies": false,
+   "PilotsLicense": false,
+   "StayingAbroad": false,
+   "IsIsraeliCitizen": true
+  },
+  "InshuredAgreemntAndDeclarration": {
+   "MedicalConfidentiality": true,
+   "ConsentJoinInsuarnce": true,
+   "PrivacyProtection": true
+  },
+  "HealthDeclaration": {
+   "Height": 1.7,
+   "Weight": 70,
+   "WeightChange10p": false,
+   "IsAlcohol": false,
+   "IsDrugs": false,
+   "HospitalizationInTheLast5Years": false,
+   "SurgeriesInTheLast5Years": false,
+   "IsMedicinesRegularly": false,
+   "BloodAndUrineTest": false,
+   "Disability": false,
+   "ClearProcess": false,
+   "FamilyHistoryOfIllness": false,
+   "NervousSystemAndBrain": false,
+   "CardiovascularDiseases": false,
+   "DigestiveTract": false,
+   "LungsAndRespiratoryTract": false,
+   "KidneysAndUrinaryTract": false,
+   "MalignantDiseases": false,
+   "EndoCrinology": false,
+   "RheumaticDiseases": false,
+   "InfectiousDiseases": false,
+   "ReproductiveSystem": false,
+   "Soul": false
+  },
+  "SmokeHelthComp": {
+   "SmokingNow": true,
+   "NumberSig": 10
+  },
+  "FamilyBackgroundHelthComp": {
+   "FamilyBackgroundDetails": [
+    "אב"
+   ],
+   "MentalillnessesF": true,
+   "MentalillnessesFAGE": 80
+  },
+  "ComparisonQuestionnaire": {
+   "OtherPolicy": true,
+   "IsCancellationRequired": true,
+   "IsCancellationRequiredByShlomo": true,
+   "InsuranceCompany": "ביטוח ישיר"
+  },
+  "MethodSale": {
+   "MethodOfSale": "מכירה פרונטלית",
+   "AgentStatementCopy": true,
+   "AgentStatementMaterialInfo": true
+  }
+ }
+}

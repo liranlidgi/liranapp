@@ -42,6 +42,8 @@ class FieldSpec:
     column_header: str | None = None  # ROW: header of the value column;
                                       # SIGNED: label of the signature slot
     max_gap: float = 60.0             # INLINE only: max distance from label to value
+    wide_cell: bool = False           # GRID only: the value may sit right-aligned anywhere
+                                      # between this label and the next label to its right
     grid_gap: float = 13.0            # GRID only: max vertical gap between value and label
     notes: str = ""
 

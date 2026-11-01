@@ -9,3 +9,9 @@ venv/
 # phone numbers, health declarations, signatures).
 *.pdf
 /samples/
+# test-form generator: the blank template (made from a real form) and output
+/templates/
+/generated/
+# the external copy of the policy panel is built from the internal panel
+# source and holds that system's lists: copied in by hand, not in git
+/frontend/panel/

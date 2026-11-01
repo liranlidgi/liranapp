@@ -5,3 +5,6 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
+    volumes:
+      # the test-form generator's blank template (not in git, not in the image)
+      - ./templates:/templates:ro

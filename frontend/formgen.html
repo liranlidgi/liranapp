@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מחולל טפסי בדיקה</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --border: #e2e5ea; --text: #1f2430; --muted: #6b7280;
+    --high: #1a8f4c; --high-bg: #e6f7ec; --low: #c0392b; --low-bg: #fdecea; --accent: #2f5fd0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); padding: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  .subtitle { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .row { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
+  label.f { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  input[type=number] { width: 110px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; }
+  .edges { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 16px; margin-top: 8px; }
+  .edges label, .opt { font-size: 14px; display: flex; gap: 8px; align-items: center; }
+  .edges code { color: var(--muted); font-size: 11px; }
+  button { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+  button.light { background: white; color: var(--text); border: 1px solid var(--border); }
+  button:disabled { background: #a9b6d6; cursor: not-allowed; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: #fafbfc; font-weight: 600; color: var(--muted); font-size: 12px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .ok { background: var(--high-bg); color: var(--high); }
+  .bad { background: var(--low-bg); color: var(--low); }
+  .issue { font-size: 12px; color: var(--low); }
+  #status { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  #status.error { color: var(--low); }
+  .hidden { display: none; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  textarea { width: 100%; min-height: 70px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font: 13px "Segoe UI", Arial, sans-serif; }
+  .lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 14px; }
+  details.sec { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: #fff; }
+  details.sec > summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; }
+  details.sec > summary .cnt { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px 18px; padding: 4px 14px 14px; }
+  .fld { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+  .fld.inline { flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 13px; }
+  .fld input[type=text], .fld select, td input[type=text], td select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; width: 100%; background: #fff; color: var(--text); }
+  .fld.filled input[type=text], .fld.filled select { border-color: #9fb3e6; background: #f6f8ff; }
+  .tbl { padding: 4px 14px 14px; overflow-x: auto; }
+  .tbl h3 { font-size: 13px; margin: 8px 0; }
+  .tbl td { padding: 4px; }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+  .toolbar .grow { flex: 1; }
+  button.small { padding: 6px 12px; font-size: 13px; }
+  #oneRes { font-size: 13px; margin-top: 10px; }
+</style>
+</head>
+<body>
+  <h1>מחולל טפסי בדיקה – הצעה (קוד 10)</h1>
+  <p class="subtitle">יוצר טפסי הצעה מלאים עם אנשים ופרטים מומצאים, על גבי הטופס האמיתי, יחד עם הערכים הצפויים של כל טופס. · <a href="panel.html">פאנל הצעות (חיצוני)</a> · <a href="index.html">חזרה לחילוץ שדות</a></p>
+
+  <div class="card">
+    <h2>הגדרות</h2>
+    <div class="row">
+      <label class="f">כמות טפסים<input type="number" id="count" min="1" max="200" value="10"></label>
+      <label class="f">מספר התחלה (seed)<input type="number" id="seed" value="1"></label>
+      <label class="opt"><input type="checkbox" id="random" checked> שילוב אקראי של מקרי קצה</label>
+      <label class="opt"><input type="checkbox" id="check" checked> להריץ את הקורא על הטפסים ולהשוות</label>
+    </div>
+    <details style="margin-top:14px">
+      <summary style="cursor:pointer;font-size:14px">ערכים מהסביבה שלך (סוכנים, קודי הנחה, עיסוקים)</summary>
+      <p class="note">ערך בכל שורה, כמו שהם מופיעים ברשימות של הסקריפט בסביבה. המחולל בוחר מהם, כך שהטפסים יתאימו לסביבה. ריק = ערכים לדוגמה.</p>
+      <div class="lists">
+        <label class="fld">סוכנים (מספר - שם)<textarea id="lAgents" placeholder="412 - סוכנות לדוגמה"></textarea></label>
+        <label class="fld">קודי הנחה<textarea id="lDiscounts" placeholder="55"></textarea></label>
+        <label class="fld">עיסוקים<textarea id="lOcc" placeholder="מורה"></textarea></label>
+      </div>
+    </details>
+    <div id="edgesBox">
+      <p class="note">מקרי קצה קבועים לכל הטפסים (כשהשילוב האקראי כבוי):</p>
+      <div class="edges" id="edges"></div>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button id="go">צור טפסים</button>
+      <button id="dl" class="light hidden">הורדת הקבצים (zip)</button>
+    </div>
+    <div id="status"></div>
+    <p class="note">אותו seed נותן תמיד את אותם טפסים, כך שאפשר לחזור על תרחיש. כל הפרטים בטפסים מומצאים.</p>
+  </div>
+
+  <div class="card">
+    <h2>טופס בודד – עריכת ערכים</h2>
+    <p class="note" style="margin-top:0">מתחילים מטיוטה אקראית (לפי ה-seed ומקרי הקצה שלמעלה) או מטופס ריק, משנים כל ערך שרוצים, ויוצרים PDF. שדה ריק לא נכתב בטופס.</p>
+    <div class="toolbar">
+      <button id="draft" class="light small">טיוטה אקראית</button>
+      <button id="blank" class="light small">טופס ריק</button>
+      <button id="loadSc" class="light small">טעינת תרחיש שמור</button>
+      <input type="file" id="scFile" accept=".json" class="hidden">
+      <span class="grow"></span>
+      <label class="opt"><input type="checkbox" id="filledOnly"> הצג רק שדות מלאים</label>
+    </div>
+    <div id="editor"></div>
+    <div class="toolbar hidden" id="oneBar">
+      <label class="f" style="font-size:13px">שם הקובץ<input type="text" id="oneName" value="test-form" style="padding:7px;border:1px solid var(--border);border-radius:6px"></label>
+      <button id="renderOne">צור PDF</button>
+      <button id="dlPdf" class="light small hidden">הורדת PDF</button>
+      <button id="dlExp" class="light small hidden">הורדת ערכים צפויים</button>
+      <button id="saveSc" class="light small">שמירת התרחיש</button>
+    </div>
+    <div id="oneRes"></div>
+  </div>
+
+  <div class="card hidden" id="resCard">
+    <h2 id="resTitle">תוצאות</h2>
+    <table>
+      <thead><tr><th>קובץ</th><th>מקרי קצה</th><th>שדות שנקראו נכון</th><th>ערכי Insurtix</th><th>פערים</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+<script>
+const API_BASE = '';
+const $ = (id) => document.getElementById(id);
+let zipUrl = null;
+
+function esc(s) {
+  return String(s == null ? '—' : s).replace(/[&<>"]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+}
+
+function setStatus(t, err) { $('status').textContent = t; $('status').className = err ? 'error' : ''; }
+
+async function loadOptions() {
+  try {
+    const r = await fetch(API_BASE + '/api/formgen/options');
+    const o = await r.json();
+    $('edges').innerHTML = Object.entries(o.edges).map(([k, v]) =>
+      '<label><input type="checkbox" value="' + esc(k) + '"> ' + esc(v) + ' <code>' + esc(k) + '</code></label>').join('');
+    if (!o.ready) { setStatus(o.reason, true); $('go').disabled = true; }
+  } catch (e) { setStatus('השרת לא זמין: ' + e.message, true); }
+}
+
+function toggleEdges() { $('edgesBox').style.opacity = $('random').checked ? 0.45 : 1; }
+
+$('random').addEventListener('change', toggleEdges);
+
+$('go').addEventListener('click', async () => {
+  const body = {
+    count: +$('count').value, seed: +$('seed').value, random_edges: $('random').checked, check: $('check').checked,
+    edges: [...document.querySelectorAll('#edges input:checked')].map((x) => x.value),
+  };
+  Object.assign(body, envLists());
+  $('go').disabled = true; $('dl').classList.add('hidden');
+  setStatus('יוצר ' + body.count + ' טפסים' + (body.check ? ' ומריץ עליהם את הקורא' : '') + '…');
+  try {
+    const r = await fetch(API_BASE + '/api/formgen/generate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || r.status);
+    const bin = Uint8Array.from(atob(d.zip), (c) => c.charCodeAt(0));
+    if (zipUrl) URL.revokeObjectURL(zipUrl);
+    zipUrl = URL.createObjectURL(new Blob([bin], {type: 'application/zip'}));
+    $('dl').classList.remove('hidden');
+    show(d.report, body.check);
+    setStatus('נוצרו ' + d.report.forms.length + ' טפסים.');
+  } catch (e) { setStatus('שגיאה: ' + e.message, true); }
+  $('go').disabled = false;
+});
+
+$('dl').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = zipUrl; a.download = 'test-forms-seed' + $('seed').value + '.zip'; a.click();
+});
+
+function show(rep, checked) {
+  $('resCard').classList.remove('hidden');
+  $('resTitle').textContent = checked
+    ? 'תוצאות: שדות ' + (rep.fields - rep.fields_bad) + '/' + rep.fields + ' · ערכי Insurtix ' + (rep.mapped - rep.mapped_bad) + '/' + rep.mapped
+    : 'הטפסים נוצרו (ללא בדיקה)';
+  $('rows').innerHTML = rep.forms.map((f) => {
+    if (!checked) return '<tr><td dir="ltr">' + esc(f.file) + '</td><td>' + esc(f.edges.join(', ') || '—') + '</td><td>—</td><td>—</td><td></td></tr>';
+    const fb = f.fields_bad.length, mb = f.mapped_bad.length;
+    const issues = f.fields_bad.slice(0, 4).map((b) => '<div class="issue">' + esc(b.field) + ': צפוי "' + esc(b.expected) + '", נקרא "' + esc(b.got) + '"</div>')
+      .concat(f.mapped_bad.slice(0, 4).map((b) => '<div class="issue">' + esc(b.path) + ': צפוי "' + esc(b.expected) + '", התקבל "' + esc(b.got) + '"</div>')).join('');
+    return '<tr><td dir="ltr">' + esc(f.file) + '</td><td>' + esc(f.edges.join(', ') || '—') + '</td>' +
+      '<td><span class="badge ' + (fb ? 'bad' : 'ok') + '">' + (f.fields - fb) + '/' + f.fields + '</span></td>' +
+      '<td><span class="badge ' + (mb ? 'bad' : 'ok') + '">' + (f.mapped - mb) + '/' + f.mapped + '</span></td>' +
+      '<td>' + issues + '</td></tr>';
+  }).join('');
+}
+
+/* ---------- environment lists (kept in this browser) ---------- */
+const LISTS = {lAgents: 'fg.agents', lDiscounts: 'fg.discounts', lOcc: 'fg.occ'};
+function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+Object.entries(LISTS).forEach(([id, k]) => {
+  $(id).value = lsGet(k);
+  $(id).addEventListener('input', () => lsSet(k, $(id).value));
+});
+function lines(id) { return $(id).value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean); }
+function envLists() { return {agents: lines('lAgents'), discounts: lines('lDiscounts'), occupations: lines('lOcc')}; }
+function edgeSettings() {
+  return {seed: +$('seed').value, random_edges: $('random').checked,
+    edges: [...document.querySelectorAll('#edges input:checked')].map((x) => x.value)};
+}
+
+/* ---------- single form editor ---------- */
+let SCHEMA = null, SC = null, pdfUrl = null, expUrl = null;
+const KIND_STORE = {text: 'text', choice: 'choice', checkbox: 'checkbox', signature: 'signature', finding: 'findings'};
+
+async function schema() {
+  if (!SCHEMA) {
+    const r = await fetch(API_BASE + '/api/formgen/schema');
+    if (r.status === 404) throw new Error('השרת רץ עם גרסה קודמת. צריך לעצור אותו ולהפעיל מחדש (ב-Docker: docker compose up --build).');
+    const d = await r.json();
+    if (!r.ok || !d.sections) throw new Error(d.detail || ('השרת החזיר ' + r.status));
+    SCHEMA = d;
+  }
+  return SCHEMA;
+}
+
+function emptyScenario() {
+  return {seed: 0, edges: [], text: {}, choice: {}, checkbox: {}, signature: {}, findings: {}, beneficiaries: {}, signing_log: []};
+}
+
+function isFilled(f) {
+  const v = SC[KIND_STORE[f.kind]][f.key];
+  return f.kind === 'checkbox' || f.kind === 'signature' ? !!v : !!(v && String(v).trim());
+}
+
+function fieldHtml(f) {
+  const store = KIND_STORE[f.kind], v = SC[store][f.key];
+  const data = ' data-store="' + store + '" data-key="' + esc(f.key) + '"';
+  const filled = isFilled(f) ? ' filled' : '';
+  if (f.kind === 'checkbox' || f.kind === 'signature') {
+    return '<label class="fld inline' + filled + '"><input type="checkbox"' + data + (v ? ' checked' : '') + '> ' + esc(f.name) + '</label>';
+  }
+  if (f.kind === 'choice') {
+    const opts = ['<option value=""></option>'].concat(f.options.map((o) =>
+      '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>'));
+    return '<label class="fld' + filled + '">' + esc(f.name) + '<select' + data + '>' + opts.join('') + '</select></label>';
+  }
+  return '<label class="fld' + filled + '">' + esc(f.name) + '<input type="text"' + data + ' value="' + (v == null ? '' : esc(v)) + '"></label>';
+}
+
+function benefHtml() {
+  return Object.entries(SCHEMA.beneficiaries).map(([t, spec]) => {
+    const rows = SC.beneficiaries[t] || [];
+    let h = '<h3>' + esc(t) + '</h3><table><thead><tr><th>#</th>' + spec.columns.map((c) => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>';
+    for (let i = 0; i < spec.rows; i++) {
+      const r = rows[i] || {};
+      h += '<tr><td>' + (i + 1) + '</td>' + spec.columns.map((c) => {
+        const d = ' data-ben="' + esc(t) + '" data-row="' + i + '" data-col="' + esc(c) + '"';
+        if (spec.options[c]) {
+          return '<td><select' + d + '><option value=""></option>' + spec.options[c].map((o) =>
+            '<option' + (o === r[c] ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select></td>';
+        }
+        return '<td><input type="text"' + d + ' value="' + esc(r[c] || '') + '"></td>';
+      }).join('') + '</tr>';
+    }
+    return h + '</tbody></table>';
+  }).join('');
+}
+
+function logHtml() {
+  const cols = SCHEMA.signing_log, rows = SC.signing_log || [];
+  let h = '<table><thead><tr><th>#</th>' + cols.map((c) => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>';
+  for (let i = 0; i < Math.max(rows.length + 1, 3); i++) {
+    const r = rows[i] || {};
+    h += '<tr><td>' + (i + 1) + '</td>' + cols.map((c) =>
+      '<td><input type="text" data-log="' + i + '" data-col="' + esc(c) + '" value="' + esc(r[c] || '') + '"></td>').join('') + '</tr>';
+  }
+  return h + '</tbody></table><p class="note">שורה ריקה לא נכתבת. בלי שורות בכלל – אין עמוד יומן חתימות.</p>';
+}
+
+function drawEditor() {
+  const only = $('filledOnly').checked;
+  const open = new Set([...document.querySelectorAll('#editor details[open]')].map((d) => d.dataset.sec));
+  let h = SCHEMA.sections.map((s) => {
+    const fs = s.fields.filter((f) => !only || isFilled(f));
+    const n = s.fields.filter(isFilled).length;
+    if (!fs.length) return '';
+    return '<details class="sec" data-sec="' + esc(s.name) + '"' + (open.has(s.name) ? ' open' : '') + '><summary>' + esc(s.name) +
+      ' <span class="cnt">' + n + ' מלאים · עמוד ' + s.page + '</span></summary><div class="grid">' + fs.map(fieldHtml).join('') + '</div></details>';
+  }).join('');
+  const nb = Object.values(SC.beneficiaries).reduce((a, r) => a + r.length, 0);
+  h += '<details class="sec" data-sec="__ben"' + (open.has('__ben') ? ' open' : '') + '><summary>טבלאות מוטבים <span class="cnt">' + nb +
+    ' שורות</span></summary><div class="tbl">' + benefHtml() + '<p class="note">כשיש מוטבים, בדרך כלל מורידים את הסימון "יורשים חוקיים" בסעיף מוטבים.</p></div></details>';
+  h += '<details class="sec" data-sec="__log"' + (open.has('__log') ? ' open' : '') + '><summary>יומן חתימות (עמוד אחרון) <span class="cnt">' + (SC.signing_log || []).length +
+    ' שורות</span></summary><div class="tbl">' + logHtml() + '</div></details>';
+  $('editor').innerHTML = h;
+  $('oneBar').classList.remove('hidden');
+}
+
+$('editor').addEventListener('input', (e) => {
+  const el = e.target, d = el.dataset;
+  const val = el.type === 'checkbox' ? el.checked : el.value;
+  if (d.store) {
+    SC[d.store][d.key] = val;
+    const box = el.closest('.fld');
+    if (box && el.type !== 'checkbox') box.classList.toggle('filled', !!String(val).trim());
+  } else if (d.ben) {
+    const rows = SC.beneficiaries[d.ben] = SC.beneficiaries[d.ben] || [];
+    while (rows.length <= +d.row) rows.push({});
+    rows[+d.row][d.col] = val;
+  } else if (d.log) {
+    const rows = SC.signing_log = SC.signing_log || [];
+    const grow = +d.log >= rows.length;
+    while (rows.length <= +d.log) rows.push({});
+    rows[+d.log][d.col] = val;
+    if (grow) { const f = document.activeElement; drawEditor(); refocus(f); }
+  }
+});
+$('editor').addEventListener('change', (e) => { if (e.target.tagName === 'SELECT' || e.target.type === 'checkbox') e.target.dispatchEvent(new Event('input', {bubbles: true})); });
+
+function refocus(old) {
+  if (!old || !old.dataset) return;
+  const sel = '[data-log="' + old.dataset.log + '"][data-col="' + old.dataset.col + '"]';
+  const n = document.querySelector(sel);
+  if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); }
+}
+
+function setScenario(sc) {
+  const base = emptyScenario();
+  SC = Object.assign(base, sc || {});
+  ['text', 'choice', 'checkbox', 'signature', 'findings', 'beneficiaries'].forEach((k) => { SC[k] = SC[k] || {}; });
+  SC.signing_log = SC.signing_log || [];
+  drawEditor();
+  $('oneRes').innerHTML = '';
+  [$('dlPdf'), $('dlExp')].forEach((b) => b.classList.add('hidden'));
+}
+
+$('draft').addEventListener('click', async () => {
+  try {
+    await schema();
+    const r = await fetch(API_BASE + '/api/formgen/scenario', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(Object.assign(edgeSettings(), envLists()))});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || r.status);
+    setScenario(d);
+    $('oneName').value = 'test-seed' + d.seed;
+    $('oneRes').textContent = 'טיוטה מ-seed ' + d.seed + (d.edges.length ? ' · מקרי קצה: ' + d.edges.join(', ') : '');
+  } catch (e) { $('oneRes').innerHTML = '<span class="issue">שגיאה: ' + esc(e.message) + '</span>'; }
+});
+
+$('blank').addEventListener('click', async () => {
+  try {
+    await schema();
+    $('filledOnly').checked = false;
+    setScenario(emptyScenario());
+    $('oneName').value = 'test-form';
+    $('oneRes').textContent = 'טופס ריק – פתח סעיף ומלא את השדות שתרצה.';
+  } catch (e) { $('oneRes').innerHTML = '<span class="issue">שגיאה: ' + esc(e.message) + '</span>'; }
+});
+$('filledOnly').addEventListener('change', () => { if (SC) drawEditor(); });
+
+$('saveSc').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(SC, null, 1)], {type: 'application/json'}));
+  a.download = ($('oneName').value || 'test-form') + '.scenario.json'; a.click();
+});
+$('loadSc').addEventListener('click', () => $('scFile').click());
+$('scFile').addEventListener('change', async () => {
+  const f = $('scFile').files[0]; if (!f) return;
+  try {
+    await schema();
+    let sc = JSON.parse(await f.text());
+    if (sc.scenario) sc = sc.scenario;  /* an NNN.expected.json from the zip works too */
+    setScenario(sc);
+    $('oneName').value = f.name.replace(/(\.scenario|\.expected)?\.json$/, '');
+  } catch (e) { $('oneRes').innerHTML = '<span class="issue">הקובץ לא נקרא: ' + esc(e.message) + '</span>'; }
+  $('scFile').value = '';
+});
+
+$('renderOne').addEventListener('click', async () => {
+  const name = ($('oneName').value || 'test-form').replace(/[^\w\u0590-\u05FF.-]+/g, '_');
+  $('renderOne').disabled = true;
+  $('oneRes').textContent = 'יוצר PDF' + ($('check').checked ? ' ובודק אותו עם הקורא' : '') + '…';
+  try {
+    const r = await fetch(API_BASE + '/api/formgen/render', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({scenario: SC, check: $('check').checked, name})});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || r.status);
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    if (expUrl) URL.revokeObjectURL(expUrl);
+    pdfUrl = URL.createObjectURL(new Blob([Uint8Array.from(atob(d.pdf), (c) => c.charCodeAt(0))], {type: 'application/pdf'}));
+    expUrl = URL.createObjectURL(new Blob([JSON.stringify(d.expected, null, 1)], {type: 'application/json'}));
+    $('dlPdf').dataset.name = name + '.pdf'; $('dlExp').dataset.name = name + '.expected.json';
+    [$('dlPdf'), $('dlExp')].forEach((b) => b.classList.remove('hidden'));
+    let h = 'הטופס נוצר.';
+    if (d.check) {
+      const c = d.check, fb = c.fields_bad.length, mb = c.mapped_bad.length;
+      h += ' שדות: <span class="badge ' + (fb ? 'bad' : 'ok') + '">' + (c.fields - fb) + '/' + c.fields + '</span>' +
+        ' · ערכי Insurtix: <span class="badge ' + (mb ? 'bad' : 'ok') + '">' + (c.mapped - mb) + '/' + c.mapped + '</span>' +
+        c.fields_bad.map((b) => '<div class="issue">' + esc(b.field) + ': צפוי "' + esc(b.expected) + '", נקרא "' + esc(b.got) + '"</div>').join('') +
+        c.mapped_bad.map((b) => '<div class="issue">' + esc(b.path) + ': צפוי "' + esc(b.expected) + '", התקבל "' + esc(b.got) + '"</div>').join('');
+    }
+    $('oneRes').innerHTML = h;
+  } catch (e) { $('oneRes').innerHTML = '<span class="issue">שגיאה: ' + esc(e.message) + '</span>'; }
+  $('renderOne').disabled = false;
+});
+[$('dlPdf'), $('dlExp')].forEach((b) => b.addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = b.id === 'dlPdf' ? pdfUrl : expUrl; a.download = b.dataset.name; a.click();
+}));
+
+toggleEdges();
+loadOptions();
+</script>
+</body>
+</html>
